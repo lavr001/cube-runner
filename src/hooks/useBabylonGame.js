@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import * as BABYLON from "babylonjs";
 
-export default function useBabylonGame(canvasRef, started) {
+const useBabylonGame = (canvasRef, started) => {
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const sceneRef = useRef(null);
@@ -76,7 +76,7 @@ export default function useBabylonGame(canvasRef, started) {
       playerRef.current = null;
       obstaclesRef.current = [];
       shadowGenRef.current = null;
-      gameLoopObserverRef.current = null; // Ensure observer ref is cleared
+      gameLoopObserverRef.current = null;
     };
   }, [canvasRef]);
 
@@ -172,7 +172,6 @@ export default function useBabylonGame(canvasRef, started) {
         }
       };
     } else {
-      // Cleanup observer if 'started' becomes false while game was running
       if (gameLoopObserverRef.current && scene) {
         scene.onBeforeRenderObservable.remove(gameLoopObserverRef.current);
         gameLoopObserverRef.current = null;
@@ -181,4 +180,6 @@ export default function useBabylonGame(canvasRef, started) {
   }, [started, canvasRef]);
 
   return { score, gameOver };
-}
+};
+
+export default useBabylonGame;
