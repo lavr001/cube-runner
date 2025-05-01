@@ -1,0 +1,11 @@
+$score-text-color: #fff;
+$score-font-size: 1.25rem;
+
+.score-display {
+  position: absolute;
+  top: 0.625rem;
+  left: 0.625rem;
+  color: $score-text-color;
+  font-size: $score-font-size;
+  z-index: 5;
+}

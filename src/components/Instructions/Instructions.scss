@@ -1,0 +1,40 @@
+$instructions-bg: rgba(0, 0, 0, 0.7);
+$instructions-text: #fff;
+$instructions-border-radius: 0.5rem;
+
+.instructions-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: $instructions-bg;
+  color: $instructions-text;
+  padding: 1.25rem;
+  border-radius: $instructions-border-radius;
+  text-align: center;
+  max-width: 80%;
+  z-index: 10;
+
+  h2 {
+    margin-top: 0;
+  }
+
+  ul {
+    list-style: none;
+    padding: 0;
+    text-align: left;
+    margin-top: 0.625rem;
+
+    li {
+      margin-bottom: 0.5rem;
+
+      b {
+        margin-right: 0.25rem;
+      }
+    }
+  }
+
+  p {
+    margin-bottom: 0;
+  }
+}
