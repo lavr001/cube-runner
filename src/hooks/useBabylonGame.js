@@ -93,6 +93,7 @@ const useBabylonGame = (canvasRef, started) => {
       obstaclesRef.current.forEach((obs) => obs.dispose());
       obstaclesRef.current = [];
       player.position.set(0, 0.5, -4);
+      player.isVisible = true;
 
       let internalScore = 0;
       let isOver = false;
@@ -139,6 +140,52 @@ const useBabylonGame = (canvasRef, started) => {
           if (obs.intersectsMesh(player, false)) {
             isOver = true;
             setGameOver(true);
+
+            player.isVisible = false;
+
+            const particleSystem = new BABYLON.ParticleSystem(
+              "particles",
+              2000,
+              scene
+            );
+            particleSystem.particleTexture = new BABYLON.Texture(
+              "https://www.babylonjs-playground.com/textures/flare.png",
+              scene
+            );
+
+            particleSystem.emitter = player.position.clone();
+            particleSystem.minEmitBox = new BABYLON.Vector3(-0.5, -0.5, -0.5);
+            particleSystem.maxEmitBox = new BABYLON.Vector3(0.5, 0.5, 0.5);
+
+            particleSystem.color1 = new BABYLON.Color4(0.2, 0.5, 1.0, 1.0);
+            particleSystem.color2 = new BABYLON.Color4(0.1, 0.3, 0.8, 1.0);
+            particleSystem.colorDead = new BABYLON.Color4(0, 0, 0.2, 0.0);
+
+            particleSystem.minSize = 0.1;
+            particleSystem.maxSize = 0.5;
+
+            particleSystem.minLifeTime = 5.0; // Adjust as needed
+            particleSystem.maxLifeTime = 7.0; // Adjust as needed
+
+            particleSystem.emitRate = 1500;
+            particleSystem.manualEmitCount = 1500;
+            particleSystem.targetStopDuration = 0.1;
+
+            particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
+
+            particleSystem.gravity = new BABYLON.Vector3(0, -9.81, 0);
+
+            particleSystem.direction1 = new BABYLON.Vector3(-3, 3, -3);
+            particleSystem.direction2 = new BABYLON.Vector3(3, 3, 3);
+
+            particleSystem.minEmitPower = 2;
+            particleSystem.maxEmitPower = 5;
+            particleSystem.updateSpeed = 0.008;
+
+            particleSystem.disposeOnStop = true;
+
+            particleSystem.start();
+
             break;
           }
 
