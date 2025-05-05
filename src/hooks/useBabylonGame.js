@@ -1,7 +1,12 @@
 import { useEffect, useState, useRef } from "react";
 import * as BABYLON from "babylonjs";
 
-const useBabylonGame = (canvasRef, started) => {
+const useBabylonGame = (
+  canvasRef,
+  started,
+  isTouchingLeft,
+  isTouchingRight
+) => {
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const sceneRef = useRef(null);
@@ -9,6 +14,16 @@ const useBabylonGame = (canvasRef, started) => {
   const obstaclesRef = useRef([]);
   const shadowGenRef = useRef(null);
   const gameLoopObserverRef = useRef(null);
+  const isTouchingLeftRef = useRef(isTouchingLeft);
+  const isTouchingRightRef = useRef(isTouchingRight);
+
+  useEffect(() => {
+    isTouchingLeftRef.current = isTouchingLeft;
+  }, [isTouchingLeft]);
+
+  useEffect(() => {
+    isTouchingRightRef.current = isTouchingRight;
+  }, [isTouchingRight]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -201,9 +216,21 @@ const useBabylonGame = (canvasRef, started) => {
           createObstacle();
         }
 
-        if (inputMap["ArrowLeft"] || inputMap["a"]) player.position.x -= 0.1;
-        if (inputMap["ArrowRight"] || inputMap["d"]) player.position.x += 0.1;
-        player.position.x = BABYLON.Scalar.Clamp(player.position.x, -4.5, 4.5);
+        if (
+          inputMap["ArrowLeft"] ||
+          inputMap["a"] ||
+          isTouchingLeftRef.current
+        ) {
+          player.position.x -= 0.1;
+        }
+        if (
+          inputMap["ArrowRight"] ||
+          inputMap["d"] ||
+          isTouchingRightRef.current
+        ) {
+          player.position.x += 0.1;
+        }
+        player.position.x = BABYLON.Scalar.Clamp(player.position.x, -4.5, 4.5); // Clamp player position
 
         internalScore += 0.1;
         setScore(Math.floor(internalScore));
