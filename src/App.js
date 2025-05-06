@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import useBabylonGame from "./hooks/useBabylonGame";
 import ScoreDisplay from "./components/ScoreDisplay/ScoreDisplay";
 import Instructions from "./components/Instructions/Instructions";
@@ -17,6 +17,43 @@ const App = () => {
     isTouchingLeft,
     isTouchingRight
   );
+
+  useEffect(() => {
+    const updateViewportOffset = () => {
+      if (window.visualViewport) {
+        const offset =
+          window.innerHeight -
+          (window.visualViewport.offsetTop + window.visualViewport.height);
+        document.documentElement.style.setProperty(
+          "--visual-viewport-bottom-offset",
+          `${Math.max(0, offset)}px`
+        );
+      } else {
+        document.documentElement.style.setProperty(
+          "--visual-viewport-bottom-offset",
+          `0px`
+        );
+      }
+    };
+
+    if (window.visualViewport) {
+      updateViewportOffset();
+
+      window.visualViewport.addEventListener("resize", updateViewportOffset);
+      window.visualViewport.addEventListener("scroll", updateViewportOffset); // Scroll might also affect offsetTop
+
+      return () => {
+        window.visualViewport.removeEventListener(
+          "resize",
+          updateViewportOffset
+        );
+        window.visualViewport.removeEventListener(
+          "scroll",
+          updateViewportOffset
+        );
+      };
+    }
+  }, []);
 
   const handleStartClick = () => {
     setShowInstructions(false);
