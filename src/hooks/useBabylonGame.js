@@ -114,6 +114,7 @@ const useBabylonGame = (
       let isOver = false;
       let speed = 0.02;
       const speedInc = 0.00005;
+      const scoreRate = 0.1;
       const inputMap = {};
 
       const handleKeyDown = (e) => (inputMap[e.key] = true);
@@ -148,9 +149,14 @@ const useBabylonGame = (
       gameLoopObserverRef.current = scene.onBeforeRenderObservable.add(() => {
         if (isOver || !scene || !player) return;
 
+        const engine = scene.getEngine();
+        const deltaTime = engine.getDeltaTime() / 1000.0;
+
+        const sixtyFpsFactor = deltaTime * 60.0;
+
         for (let i = obstaclesRef.current.length - 1; i >= 0; i--) {
           const obs = obstaclesRef.current[i];
-          obs.position.z -= speed;
+          obs.position.z -= speed * sixtyFpsFactor;
 
           if (obs.intersectsMesh(player, false)) {
             isOver = true;
@@ -179,8 +185,8 @@ const useBabylonGame = (
             particleSystem.minSize = 0.1;
             particleSystem.maxSize = 0.5;
 
-            particleSystem.minLifeTime = 5.0; // Adjust as needed
-            particleSystem.maxLifeTime = 7.0; // Adjust as needed
+            particleSystem.minLifeTime = 5.0;
+            particleSystem.maxLifeTime = 7.0;
 
             particleSystem.emitRate = 1500;
             particleSystem.manualEmitCount = 1500;
@@ -230,11 +236,11 @@ const useBabylonGame = (
         ) {
           player.position.x += 0.1;
         }
-        player.position.x = BABYLON.Scalar.Clamp(player.position.x, -4.5, 4.5); // Clamp player position
+        player.position.x = BABYLON.Scalar.Clamp(player.position.x, -4.5, 4.5);
 
-        internalScore += 0.1;
+        internalScore += scoreRate * sixtyFpsFactor;
         setScore(Math.floor(internalScore));
-        speed += speedInc;
+        speed += speedInc * sixtyFpsFactor;
       });
 
       return () => {
