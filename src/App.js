@@ -19,39 +19,41 @@ const App = () => {
   );
 
   useEffect(() => {
-    const updateViewportOffset = () => {
+    const updateViewportValues = () => {
       if (window.visualViewport) {
-        const offset =
-          window.innerHeight -
-          (window.visualViewport.offsetTop + window.visualViewport.height);
+        const vv = window.visualViewport;
         document.documentElement.style.setProperty(
-          "--visual-viewport-bottom-offset",
-          `${Math.max(0, offset)}px`
+          "--vv-offset-top",
+          `${vv.offsetTop}px`
+        );
+        document.documentElement.style.setProperty(
+          "--vv-height",
+          `${vv.height}px`
         );
       } else {
-        document.documentElement.style.setProperty(
-          "--visual-viewport-bottom-offset",
-          `0px`
-        );
+        document.documentElement.style.setProperty("--vv-offset-top", "0px");
+        document.documentElement.style.setProperty("--vv-height", "100vh");
       }
     };
 
     if (window.visualViewport) {
-      updateViewportOffset();
+      updateViewportValues();
 
-      window.visualViewport.addEventListener("resize", updateViewportOffset);
-      window.visualViewport.addEventListener("scroll", updateViewportOffset); // Scroll might also affect offsetTop
+      window.visualViewport.addEventListener("resize", updateViewportValues);
+      window.visualViewport.addEventListener("scroll", updateViewportValues);
 
       return () => {
         window.visualViewport.removeEventListener(
           "resize",
-          updateViewportOffset
+          updateViewportValues
         );
         window.visualViewport.removeEventListener(
           "scroll",
-          updateViewportOffset
+          updateViewportValues
         );
       };
+    } else {
+      updateViewportValues();
     }
   }, []);
 
