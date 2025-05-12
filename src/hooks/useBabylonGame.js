@@ -9,6 +9,7 @@ const useBabylonGame = (
 ) => {
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
+
   const sceneRef = useRef(null);
   const playerRef = useRef(null);
   const obstaclesRef = useRef([]);
@@ -16,6 +17,9 @@ const useBabylonGame = (
   const gameLoopObserverRef = useRef(null);
   const isTouchingLeftRef = useRef(isTouchingLeft);
   const isTouchingRightRef = useRef(isTouchingRight);
+
+  const engineRef = useRef(null);
+  const gameMusicRef = useRef(null);
 
   useEffect(() => {
     isTouchingLeftRef.current = isTouchingLeft;
@@ -30,8 +34,31 @@ const useBabylonGame = (
     if (!canvas) return;
 
     const engine = new BABYLON.Engine(canvas, true);
+    engineRef.current = engine;
+
     const scene = new BABYLON.Scene(engine);
     sceneRef.current = scene;
+
+    let soundInstance;
+    if (engine.audioEngine) {
+      soundInstance = new BABYLON.Sound(
+        "gameMusic",
+        "/sounds/gameTrack.mp3",
+        scene,
+        () => console.log("Sound loaded successfully via Babylon.Sound"),
+        { loop: true, autoplay: false, volume: 0.5 }
+      );
+    } else {
+      console.warn(
+        "engine.audioEngine undefined; using HTMLAudioElement fallback"
+      );
+      const audioEl = new Audio("/sounds/gameTrack.mp3");
+      audioEl.loop = true;
+      audioEl.volume = 0.5;
+      soundInstance = audioEl;
+      console.log("HTMLAudioElement created for game music");
+    }
+    gameMusicRef.current = soundInstance;
 
     const camera = new BABYLON.ArcRotateCamera(
       "Camera",
@@ -78,7 +105,7 @@ const useBabylonGame = (
     shadowGenRef.current = shadowGen;
 
     engine.runRenderLoop(() => {
-      sceneRef.current?.render();
+      scene.render();
     });
 
     const handleResize = () => engine.resize();
@@ -86,6 +113,7 @@ const useBabylonGame = (
 
     return () => {
       window.removeEventListener("resize", handleResize);
+      if (gameMusicRef.current) gameMusicRef.current.dispose();
       engine.dispose();
       sceneRef.current = null;
       playerRef.current = null;
@@ -99,31 +127,72 @@ const useBabylonGame = (
     const scene = sceneRef.current;
     const player = playerRef.current;
     const shadowGen = shadowGenRef.current;
-
+    const sound = gameMusicRef.current;
     if (!scene || !player || !shadowGen) return;
 
-    if (started) {
-      setScore(0);
-      setGameOver(false);
-      obstaclesRef.current.forEach((obs) => obs.dispose());
-      obstaclesRef.current = [];
-      player.position.set(0, 0.5, -4);
-      player.isVisible = true;
+    const inputMap = {};
+    let internalScore = 0;
+    let speed = 0.02;
+    const speedInc = 0.00005;
+    let isOverFlag = false;
 
-      let internalScore = 0;
-      let isOver = false;
-      let speed = 0.02;
-      const speedInc = 0.00005;
-      const scoreRate = 0.1;
-      const inputMap = {};
+    const handleKeyDown = (e) => (inputMap[e.key] = true);
+    const handleKeyUp = (e) => (inputMap[e.key] = false);
 
-      const handleKeyDown = (e) => (inputMap[e.key] = true);
-      const handleKeyUp = (e) => (inputMap[e.key] = false);
-      window.addEventListener("keydown", handleKeyDown);
-      window.addEventListener("keyup", handleKeyUp);
+    const gameLoop = () => {
+      if (isOverFlag) return;
 
-      const createObstacle = () => {
-        if (!scene || !shadowGen) return null;
+      obstaclesRef.current.forEach((obs, i) => {
+        obs.position.z -= speed;
+        if (obs.intersectsMesh(player, false)) {
+          isOverFlag = true;
+          setGameOver(true);
+          player.isVisible = false;
+          const particleSystem = new BABYLON.ParticleSystem(
+            "particles",
+            2000,
+            scene
+          );
+          particleSystem.particleTexture = new BABYLON.Texture(
+            "https://www.babylonjs-playground.com/textures/flare.png",
+            scene
+          );
+          particleSystem.emitter = player.position.clone();
+          particleSystem.minEmitBox = new BABYLON.Vector3(-0.5, -0.5, -0.5);
+          particleSystem.maxEmitBox = new BABYLON.Vector3(0.5, 0.5, 0.5);
+          particleSystem.color1 = new BABYLON.Color4(0.2, 0.5, 1.0, 1.0);
+          particleSystem.color2 = new BABYLON.Color4(0.1, 0.3, 0.8, 1.0);
+          particleSystem.colorDead = new BABYLON.Color4(0, 0, 0.2, 0.0);
+          particleSystem.minSize = 0.1;
+          particleSystem.maxSize = 0.5;
+          particleSystem.minLifeTime = 5.0;
+          particleSystem.maxLifeTime = 7.0;
+          particleSystem.emitRate = 1500;
+          particleSystem.manualEmitCount = 1500;
+          particleSystem.targetStopDuration = 0.1;
+          particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
+          particleSystem.gravity = new BABYLON.Vector3(0, -9.81, 0);
+          particleSystem.direction1 = new BABYLON.Vector3(-3, 3, -3);
+          particleSystem.direction2 = new BABYLON.Vector3(3, 3, 3);
+          particleSystem.minEmitPower = 2;
+          particleSystem.maxEmitPower = 5;
+          particleSystem.updateSpeed = 0.008;
+          particleSystem.disposeOnStop = true;
+          particleSystem.start();
+          if (sound instanceof Audio) sound.pause();
+          else sound.stop();
+        }
+        if (obs.position.z < player.position.z - 10) {
+          obs.dispose();
+          obstaclesRef.current.splice(i, 1);
+        }
+      });
+
+      if (
+        !isOverFlag &&
+        obstaclesRef.current.length < 10 &&
+        Math.random() < 0.03
+      ) {
         const obs = BABYLON.MeshBuilder.CreateBox(
           "obstacle",
           { size: 1 },
@@ -140,124 +209,69 @@ const useBabylonGame = (
         obs.material = oMat;
         shadowGen.addShadowCaster(obs);
         obstaclesRef.current.push(obs);
-        return obs;
-      };
+      }
+
+      if (inputMap["ArrowLeft"] || isTouchingLeftRef.current) {
+        player.position.x -= 0.1;
+      }
+      if (inputMap["ArrowRight"] || isTouchingRightRef.current) {
+        player.position.x += 0.1;
+      }
+      player.position.x = BABYLON.Scalar.Clamp(player.position.x, -4.5, 4.5);
+
+      internalScore += 0.1;
+      setScore(Math.floor(internalScore));
+      speed += speedInc;
+    };
+
+    if (started) {
+      setScore(0);
+      setGameOver(false);
+      obstaclesRef.current.forEach((obs) => obs.dispose());
+      obstaclesRef.current = [];
+      player.position.set(0, 0.5, -4);
+      player.isVisible = true;
+      internalScore = 0;
+      speed = 0.02;
+      isOverFlag = false;
+
+      window.addEventListener("keydown", handleKeyDown);
+      window.addEventListener("keyup", handleKeyUp);
 
       if (gameLoopObserverRef.current) {
         scene.onBeforeRenderObservable.remove(gameLoopObserverRef.current);
       }
-      gameLoopObserverRef.current = scene.onBeforeRenderObservable.add(() => {
-        if (isOver || !scene || !player) return;
+      scene.onBeforeRenderObservable.add(gameLoop);
+      gameLoopObserverRef.current = gameLoop;
 
-        const engine = scene.getEngine();
-        const deltaTime = engine.getDeltaTime() / 1000.0;
-
-        const sixtyFpsFactor = deltaTime * 60.0;
-
-        for (let i = obstaclesRef.current.length - 1; i >= 0; i--) {
-          const obs = obstaclesRef.current[i];
-          obs.position.z -= speed * sixtyFpsFactor;
-
-          if (obs.intersectsMesh(player, false)) {
-            isOver = true;
-            setGameOver(true);
-
-            player.isVisible = false;
-
-            const particleSystem = new BABYLON.ParticleSystem(
-              "particles",
-              2000,
-              scene
-            );
-            particleSystem.particleTexture = new BABYLON.Texture(
-              "https://www.babylonjs-playground.com/textures/flare.png",
-              scene
-            );
-
-            particleSystem.emitter = player.position.clone();
-            particleSystem.minEmitBox = new BABYLON.Vector3(-0.5, -0.5, -0.5);
-            particleSystem.maxEmitBox = new BABYLON.Vector3(0.5, 0.5, 0.5);
-
-            particleSystem.color1 = new BABYLON.Color4(0.2, 0.5, 1.0, 1.0);
-            particleSystem.color2 = new BABYLON.Color4(0.1, 0.3, 0.8, 1.0);
-            particleSystem.colorDead = new BABYLON.Color4(0, 0, 0.2, 0.0);
-
-            particleSystem.minSize = 0.1;
-            particleSystem.maxSize = 0.5;
-
-            particleSystem.minLifeTime = 5.0;
-            particleSystem.maxLifeTime = 7.0;
-
-            particleSystem.emitRate = 1500;
-            particleSystem.manualEmitCount = 1500;
-            particleSystem.targetStopDuration = 0.1;
-
-            particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
-
-            particleSystem.gravity = new BABYLON.Vector3(0, -9.81, 0);
-
-            particleSystem.direction1 = new BABYLON.Vector3(-3, 3, -3);
-            particleSystem.direction2 = new BABYLON.Vector3(3, 3, 3);
-
-            particleSystem.minEmitPower = 2;
-            particleSystem.maxEmitPower = 5;
-            particleSystem.updateSpeed = 0.008;
-
-            particleSystem.disposeOnStop = true;
-
-            particleSystem.start();
-
-            break;
-          }
-
-          if (obs.position.z < player.position.z - 10) {
-            obs.dispose();
-            obstaclesRef.current.splice(i, 1);
-          }
-        }
-
-        if (isOver) return;
-
-        if (obstaclesRef.current.length < 10 && Math.random() < 0.03) {
-          createObstacle();
-        }
-
-        if (
-          inputMap["ArrowLeft"] ||
-          inputMap["a"] ||
-          isTouchingLeftRef.current
-        ) {
-          player.position.x -= 0.1;
-        }
-        if (
-          inputMap["ArrowRight"] ||
-          inputMap["d"] ||
-          isTouchingRightRef.current
-        ) {
-          player.position.x += 0.1;
-        }
-        player.position.x = BABYLON.Scalar.Clamp(player.position.x, -4.5, 4.5);
-
-        internalScore += scoreRate * sixtyFpsFactor;
-        setScore(Math.floor(internalScore));
-        speed += speedInc * sixtyFpsFactor;
-      });
-
-      return () => {
-        window.removeEventListener("keydown", handleKeyDown);
-        window.removeEventListener("keyup", handleKeyUp);
-        if (scene && gameLoopObserverRef.current) {
-          scene.onBeforeRenderObservable.remove(gameLoopObserverRef.current);
-          gameLoopObserverRef.current = null;
-        }
-      };
+      if (sound) {
+        if (sound instanceof Audio) sound.play();
+        else if (!sound.isPlaying) sound.play();
+      }
     } else {
-      if (gameLoopObserverRef.current && scene) {
+      if (gameLoopObserverRef.current) {
         scene.onBeforeRenderObservable.remove(gameLoopObserverRef.current);
         gameLoopObserverRef.current = null;
       }
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      if (sound) {
+        if (sound instanceof Audio) {
+          sound.pause();
+          sound.currentTime = 0;
+        } else if (sound.isPlaying) sound.stop();
+      }
     }
-  }, [started, canvasRef]);
+
+    return () => {
+      if (gameLoopObserverRef.current) {
+        scene.onBeforeRenderObservable.remove(gameLoopObserverRef.current);
+        gameLoopObserverRef.current = null;
+      }
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [started]);
 
   return { score, gameOver };
 };
