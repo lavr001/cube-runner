@@ -20,6 +20,7 @@ const useBabylonGame = (
 
   const engineRef = useRef(null);
   const gameMusicRef = useRef(null);
+  const explosionSoundRef = useRef(null);
 
   useEffect(() => {
     isTouchingLeftRef.current = isTouchingLeft;
@@ -40,6 +41,7 @@ const useBabylonGame = (
     sceneRef.current = scene;
 
     let soundInstance;
+    let explosionInstance;
     if (engine.audioEngine) {
       soundInstance = new BABYLON.Sound(
         "gameMusic",
@@ -47,6 +49,13 @@ const useBabylonGame = (
         scene,
         () => console.log("Sound loaded successfully via Babylon.Sound"),
         { loop: true, autoplay: false, volume: 0.5 }
+      );
+      explosionInstance = new BABYLON.Sound(
+        "explosion",
+        "/sounds/gameExplosion.mp3",
+        scene,
+        () => console.log("Explosion loaded successfully"),
+        { loop: false, autoplay: false, volume: 1 }
       );
     } else {
       console.warn(
@@ -56,9 +65,16 @@ const useBabylonGame = (
       audioEl.loop = true;
       audioEl.volume = 0.5;
       soundInstance = audioEl;
-      console.log("HTMLAudioElement created for game music");
+      const expEl = new Audio("/sounds/gameExplosion.mp3");
+      expEl.loop = false;
+      expEl.volume = 1;
+      explosionInstance = expEl;
+      console.log(
+        "HTMLAudioElement created for game music and explosion sound"
+      );
     }
     gameMusicRef.current = soundInstance;
+    explosionSoundRef.current = explosionInstance;
 
     const camera = new BABYLON.ArcRotateCamera(
       "Camera",
@@ -179,8 +195,17 @@ const useBabylonGame = (
           particleSystem.updateSpeed = 0.008;
           particleSystem.disposeOnStop = true;
           particleSystem.start();
-          if (sound instanceof Audio) sound.pause();
-          else sound.stop();
+          if (sound instanceof Audio) {
+            sound.pause();
+          } else {
+            sound.stop();
+          }
+          const exp = explosionSoundRef.current;
+          if (exp instanceof Audio) {
+            exp.play().catch(console.error);
+          } else {
+            exp.play();
+          }
         }
         if (obs.position.z < player.position.z - 10) {
           obs.dispose();
