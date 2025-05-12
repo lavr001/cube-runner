@@ -144,7 +144,9 @@ const useBabylonGame = (
     const player = playerRef.current;
     const shadowGen = shadowGenRef.current;
     const sound = gameMusicRef.current;
-    if (!scene || !player || !shadowGen) return;
+    const engine = engineRef.current;
+
+    if (!scene || !player || !shadowGen || !engine) return;
 
     const inputMap = {};
     let internalScore = 0;
@@ -158,8 +160,11 @@ const useBabylonGame = (
     const gameLoop = () => {
       if (isOverFlag) return;
 
+      const deltaTime = engine.getDeltaTime() / 1000.0;
+      const sixtyFpsFactor = deltaTime * 60.0;
+
       obstaclesRef.current.forEach((obs, i) => {
-        obs.position.z -= speed;
+        obs.position.z -= speed * sixtyFpsFactor;
         if (obs.intersectsMesh(player, false)) {
           isOverFlag = true;
           setGameOver(true);
@@ -237,16 +242,16 @@ const useBabylonGame = (
       }
 
       if (inputMap["ArrowLeft"] || isTouchingLeftRef.current) {
-        player.position.x -= 0.1;
+        player.position.x -= 0.1 * sixtyFpsFactor;
       }
       if (inputMap["ArrowRight"] || isTouchingRightRef.current) {
-        player.position.x += 0.1;
+        player.position.x += 0.1 * sixtyFpsFactor;
       }
       player.position.x = BABYLON.Scalar.Clamp(player.position.x, -4.5, 4.5);
 
-      internalScore += 0.1;
+      internalScore += 0.1 * sixtyFpsFactor;
       setScore(Math.floor(internalScore));
-      speed += speedInc;
+      speed += speedInc * sixtyFpsFactor;
     };
 
     if (started) {
@@ -270,7 +275,8 @@ const useBabylonGame = (
       gameLoopObserverRef.current = gameLoop;
 
       if (sound) {
-        if (sound instanceof Audio) sound.play();
+        if (sound instanceof Audio)
+          sound.play().catch((e) => console.error("HTML Audio play error:", e));
         else if (!sound.isPlaying) sound.play();
       }
     } else {
